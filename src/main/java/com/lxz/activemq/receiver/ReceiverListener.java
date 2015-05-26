@@ -15,6 +15,7 @@ import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.HTable;
 import org.springframework.jms.support.JmsUtils;
 
+import com.google.common.primitives.Bytes;
 import com.lxz.activemq.dao.UserMistake;
 import com.lxz.util.HBaseUtil;
 
@@ -29,7 +30,7 @@ public class ReceiverListener implements MessageListener{
 			userMistake.setTypeID(mapMessage.getString("typeID"));
 			userMistake.setTime(mapMessage.getString("time"));
 //			displayMail(mail);
-			saveToHBase(userMistake);
+			saveToNewMistakes(userMistake);
 		}catch(JMSException e){
 			throw JmsUtils.convertJmsAccessException(e);
 		} catch (IOException e) {
@@ -51,7 +52,7 @@ public class ReceiverListener implements MessageListener{
 	 * @param userMistake
 	 * @return 
 	 */
-	private void saveToHBase(UserMistake userMistake) throws IOException{
+	private void saveToNewMistakes(UserMistake userMistake) throws IOException{
 		String tableName = "newMistakes";
 		String rowKey = userMistake.getUserID();
 		String familyName = "mistake";
@@ -64,6 +65,38 @@ public class ReceiverListener implements MessageListener{
 		HTable hTable = new HTable(conf, tableName);
 		//插入一条数据到hbase中
 		HBaseUtil.putRecord(hTable, rowKey, familyName, column, value);
+		hTable.close();
+	}
+	
+	//create 'perMistaks','info'
+	/*
+	 * perMistakes表中存放的是再错率的数据，其中包括试题编号，推荐次数，再错次数，试题所属类型
+	 * rowKey：试题编号
+	 * family：info
+	 * column：recommend 推荐次数;mistakeAgain 再错次数;type 试题所属类型
+	 * 
+	 */
+	private void saveToPerMistakes(UserMistake userMistake) throws IOException{
+		String tableName = "perMistakes";//存入的表名
+		//String userID = userMistake.getUserID();//行键
+		String familyName = "info";//列族名
+		String mistakeID = userMistake.getMistakeID();//错题ID
+		String typeID = userMistake.getTypeID();//试题所属的类型
+		boolean isMistakeAgain = userMistake.isMistakeAgain();//判断是否再次出错，如果是则perMistakes表中该试题的再错次数加1，同时推荐次数加1
+															//如果不是则perMistakes表中该试题的推荐次数加1
+		
+		Configuration conf = HBaseConfiguration.create();
+		conf.set("hbase.rootdir", "hdfs://192.168.192.100:9000/hbase");
+		conf.set("hbase.zookeeper.quorum", "192.168.192.100");
+		HTable hTable = new HTable(conf, tableName);
+		if(isMistakeAgain == true){
+			hTable.incrementColumnValue(mistakeID.getBytes(), familyName.getBytes(), "recommend".getBytes(), 1);//推荐次数加1
+			hTable.incrementColumnValue(mistakeID.getBytes(), familyName.getBytes(), "mistakeAgain".getBytes(), 1);//再错次数加1
+			HBaseUtil.putRecord(hTable, mistakeID, familyName, "type", typeID);//插入该题所属的类型
+		}else{
+			hTable.incrementColumnValue(mistakeID.getBytes(), familyName.getBytes(), "recommend".getBytes(), 1);//推荐次数加1
+			HBaseUtil.putRecord(hTable, mistakeID, familyName, "type", typeID);//插入该题所属的类型
+		}
 		hTable.close();
 	}
 }

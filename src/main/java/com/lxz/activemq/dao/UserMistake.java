@@ -5,6 +5,7 @@ public class UserMistake {
 	private String mistakeID;//出错的试题号
 	private String typeID;//出错的试题类型
 	private String time;//出错的时间
+	private boolean mistakeAgain;//记录是否再次出错，若mistakeAgain=true表示该题再次出错，mistakeAgain=false表示该题被推荐
 
 	public UserMistake(){
 	}
@@ -14,6 +15,14 @@ public class UserMistake {
 		this.mistakeID = mistakeID;
 		this.typeID = typeID;
 		this.time = time;
+	}
+	
+	public UserMistake(String userID, String mistakeID, String typeID, String time, boolean mistakeAgain){
+		this.userID = userID;
+		this.mistakeID = mistakeID;
+		this.typeID = typeID;
+		this.time = time;
+		this.mistakeAgain = mistakeAgain;
 	}
 
 	public String getUserID() {
@@ -48,4 +57,12 @@ public class UserMistake {
 		this.time = time;
 	}
 
+	public boolean isMistakeAgain() {
+		return mistakeAgain;
+	}
+
+	public void setMistakeAgain(boolean mistakeAgain) {
+		this.mistakeAgain = mistakeAgain;
+	}
+	
 }
